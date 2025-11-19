@@ -63,11 +63,77 @@
                         <option value="vie">Tiếng Việt</option>
                     </select>
                     
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <button id="cameraBtn" class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                            📸 Chụp Ảnh
+                        </button>
+                        <button onclick="document.getElementById('fileInput').click()" class="bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors text-sm">
+                            📁 Chọn File
+                        </button>
+                        <button id="voiceBtn" class="bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition-colors text-sm">
+                            🎤 Giọng Nói
+                        </button>
+                    </div>
+                    
                     <div class="upload-area rounded-lg p-8 text-center cursor-pointer" onclick="document.getElementById('fileInput').click()">
                         <div class="text-5xl text-gray-400 mb-4">📷</div>
                         <p class="text-xl font-medium text-gray-700 mb-2">Kéo thả file vào đây</p>
                         <p class="text-gray-400 text-sm">Hoặc nhấn để chọn file</p>
                         <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
+                    </div>
+                    
+                    <!-- Camera Modal -->
+                    <div id="cameraModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+                        <div class="flex items-center justify-center min-h-screen p-4">
+                            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                                <h3 class="text-lg font-semibold mb-4">Chụp Ảnh Hóa Đơn</h3>
+                                <video id="cameraVideo" class="w-full rounded mb-4" autoplay></video>
+                                <canvas id="cameraCanvas" class="hidden"></canvas>
+                                <div class="flex gap-2">
+                                    <button id="captureBtn" class="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">
+                                        📸 Chụp
+                                    </button>
+                                    <button id="closeCameraBtn" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600">
+                                        ❌ Đóng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Voice Modal -->
+                    <div id="voiceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+                        <div class="flex items-center justify-center min-h-screen p-4">
+                            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                                <h3 class="text-lg font-semibold mb-4">Nhập Hóa Đơn Bằng Giọng Nói</h3>
+                                <div class="text-center mb-4">
+                                    <div id="voiceStatus" class="text-gray-600 mb-2">Nhấn nút để bắt đầu nói</div>
+                                    <div id="voiceAnimation" class="hidden">
+                                        <div class="w-16 h-16 mx-auto bg-red-500 rounded-full animate-pulse flex items-center justify-center">
+                                            🎤
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded mb-4 min-h-20">
+                                    <div class="text-sm text-gray-500 mb-1">Văn bản nhận diện:</div>
+                                    <div id="voiceText" class="text-gray-800">Chưa có dữ liệu...</div>
+                                </div>
+                                <div class="text-xs text-gray-500 mb-4">
+                                    💡 Nói theo mẫu: "Cửa hàng ABC, ngày 15/12/2024, tổng tiền 150000"
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="startVoiceBtn" class="flex-1 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">
+                                        🎤 Bắt Đầu
+                                    </button>
+                                    <button id="processVoiceBtn" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 hidden">
+                                        ✨ Xử Lý
+                                    </button>
+                                    <button id="closeVoiceBtn" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600">
+                                        ❌ Đóng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="previewContainer" class="mt-6 hidden">
@@ -151,6 +217,13 @@
             document.getElementById('inputTab').addEventListener('click', () => switchTab('input'));
             document.getElementById('searchTab').addEventListener('click', () => switchTab('search'));
             document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            document.getElementById('cameraBtn').addEventListener('click', openCamera);
+            document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+            document.getElementById('closeCameraBtn').addEventListener('click', closeCamera);
+            document.getElementById('voiceBtn').addEventListener('click', openVoice);
+            document.getElementById('startVoiceBtn').addEventListener('click', startVoiceRecognition);
+            document.getElementById('processVoiceBtn').addEventListener('click', processVoiceInput);
+            document.getElementById('closeVoiceBtn').addEventListener('click', closeVoice);
             document.getElementById('processBtn').addEventListener('click', processImage);
             document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
             document.getElementById('exportBtn').addEventListener('click', exportToExcel);
@@ -193,9 +266,17 @@
             }
         }
 
+        let cameraStream = null;
+        let recognition = null;
+        let voiceText = '';
+        
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
+            setUploadedFile(file);
+        }
+        
+        function setUploadedFile(file) {
             uploadedFile = file;
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -205,6 +286,223 @@
                 clearResults();
             };
             reader.readAsDataURL(file);
+        }
+        
+        async function openCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } // Camera sau
+                });
+                document.getElementById('cameraVideo').srcObject = cameraStream;
+                document.getElementById('cameraModal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Lỗi camera:', error);
+                alert('Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera.');
+            }
+        }
+        
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+                setUploadedFile(file);
+                closeCamera();
+            }, 'image/jpeg', 0.8);
+        }
+        
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            document.getElementById('cameraModal').classList.add('hidden');
+        }
+        
+        function openVoice() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Trình duyệt không hỗ trợ nhận diện giọng nói!');
+                return;
+            }
+            document.getElementById('voiceModal').classList.remove('hidden');
+            document.getElementById('voiceText').textContent = 'Chưa có dữ liệu...';
+            document.getElementById('processVoiceBtn').classList.add('hidden');
+        }
+        
+        function startVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.lang = 'vi-VN';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            
+            recognition.onstart = () => {
+                document.getElementById('voiceStatus').textContent = 'Đang nghe... Hãy nói thông tin hóa đơn';
+                document.getElementById('voiceAnimation').classList.remove('hidden');
+                document.getElementById('startVoiceBtn').textContent = '⏹️ Dừng';
+                document.getElementById('startVoiceBtn').onclick = stopVoiceRecognition;
+            };
+            
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                voiceText = finalTranscript || interimTranscript;
+                document.getElementById('voiceText').textContent = voiceText || 'Đang nghe...';
+                
+                if (finalTranscript) {
+                    document.getElementById('processVoiceBtn').classList.remove('hidden');
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Lỗi nhận diện giọng nói:', event.error);
+                document.getElementById('voiceStatus').textContent = 'Lỗi: ' + event.error;
+                stopVoiceRecognition();
+            };
+            
+            recognition.start();
+        }
+        
+        function stopVoiceRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+            document.getElementById('voiceStatus').textContent = 'Đã dừng nghe';
+            document.getElementById('voiceAnimation').classList.add('hidden');
+            document.getElementById('startVoiceBtn').textContent = '🎤 Bắt Đầu';
+            document.getElementById('startVoiceBtn').onclick = startVoiceRecognition;
+            if (voiceText) {
+                document.getElementById('processVoiceBtn').classList.remove('hidden');
+            }
+        }
+        
+        function processVoiceInput() {
+            if (!voiceText) {
+                alert('Chưa có dữ liệu giọng nói!');
+                return;
+            }
+            
+            const parsedData = parseVoiceToReceipt(voiceText);
+            currentReceiptInfo = parsedData;
+            currentRawText = voiceText;
+            
+            displayResults(parsedData, voiceText);
+            closeVoice();
+            
+            document.getElementById('copyBtn').classList.remove('hidden');
+            document.getElementById('exportBtn').classList.remove('hidden');
+            document.getElementById('saveExpenseBtn').classList.remove('hidden');
+            document.getElementById('saveBtn').classList.remove('hidden');
+        }
+        
+        function parseVoiceToReceipt(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Tìm tên cửa hàng
+            let storeName = '';
+            const storePatterns = [
+                /cửa hàng ([^,]+)/i,
+                /siêu thị ([^,]+)/i,
+                /shop ([^,]+)/i,
+                /tại ([^,]+)/i
+            ];
+            for (const pattern of storePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    storeName = match[1].trim();
+                    break;
+                }
+            }
+            
+            // Tìm ngày
+            let date = '';
+            const dateMatch = text.match(/(\d{1,2})[\s\/\-](\d{1,2})[\s\/\-](\d{2,4})/);
+            if (dateMatch) {
+                const day = dateMatch[1].padStart(2, '0');
+                const month = dateMatch[2].padStart(2, '0');
+                let year = dateMatch[3];
+                if (year.length === 2) year = '20' + year;
+                date = `${year}-${month}-${day}`;
+            }
+            
+            // Tìm tổng tiền - cải thiện
+            let total = 0;
+            
+            // Chuyển đổi số bằng chữ thành số
+            const textToNumber = {
+                'một': '1', 'hai': '2', 'ba': '3', 'bốn': '4', 'năm': '5',
+                'sáu': '6', 'bảy': '7', 'tám': '8', 'chín': '9', 'mười': '10',
+                'trăm': '00', 'nghìn': '000', 'ngàn': '000', 'triệu': '000000'
+            };
+            
+            let processedText = text.toLowerCase();
+            for (const [word, num] of Object.entries(textToNumber)) {
+                processedText = processedText.replace(new RegExp(word, 'g'), num);
+            }
+            
+            const moneyPatterns = [
+                /tổng\s*(?:tiền|cộng|số tiền)?\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(?:là|bằng|có)\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(\d+(?:[,.]?\d{3})*)\s*(?:đồng|vnđ|vnd|k|nghìn|ngàn)/i,
+                /(?:tiền|số tiền|thành tiền)\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(\d{4,})/g
+            ];
+            
+            const allNumbers = [];
+            
+            for (const pattern of moneyPatterns) {
+                if (pattern.global) {
+                    const matches = [...processedText.matchAll(pattern)];
+                    for (const match of matches) {
+                        const num = parseInt(match[0].replace(/[,.]/g, ''));
+                        if (num > 0) allNumbers.push(num);
+                    }
+                } else {
+                    const match = processedText.match(pattern);
+                    if (match) {
+                        const num = parseInt(match[1].replace(/[,.]/g, ''));
+                        if (num > 0) allNumbers.push(num);
+                    }
+                }
+            }
+            
+            if (allNumbers.length > 0) {
+                total = Math.max(...allNumbers);
+            }
+            
+            console.log('Các số tìm thấy:', allNumbers, 'Chọn:', total);
+            
+            return {
+                storeName: storeName || 'Không xác định',
+                date: date || new Date().toISOString().split('T')[0],
+                total: total,
+                items: []
+            };
+        }
+        
+        function closeVoice() {
+            if (recognition) {
+                recognition.stop();
+            }
+            document.getElementById('voiceModal').classList.add('hidden');
+            document.getElementById('voiceAnimation').classList.add('hidden');
         }
 
         async function processImage() {
@@ -227,8 +525,13 @@
                             const progress = Math.round(m.progress * 100);
                             loadingSection.innerHTML = `<div class="loading-spinner mx-auto"></div><p class="text-gray-500 mt-4">Đang nhận diện văn bản... ${progress}%</p>`;
                         }
-                    }
+                    },
+                    errorHandler: err => console.error('OCR Error:', err)
                 });
+                
+                if (!text || text.trim().length < 10) {
+                    throw new Error('Không đọc được văn bản từ hình ảnh');
+                }
 
                 currentRawText = text;
                 currentReceiptInfo = await parseWithGemini(currentRawText);
@@ -241,7 +544,7 @@
 
             } catch (error) {
                 console.error('OCR Error:', error);
-                resultsContent.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg"><strong>Lỗi xử lý:</strong> Không thể đọc được hóa đơn.</div>`;
+                resultsContent.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg"><strong>Lỗi xử lý:</strong> ${error.message || 'Không thể đọc được hóa đơn. Vui lòng thử với hình ảnh rõ nét hơn.'}</div>`;
             } finally {
                 loadingSection.classList.add('hidden');
             }
@@ -249,59 +552,53 @@
 
         // --- Hàm phân tích thông minh bằng Gemini AI ---
         async function parseWithGemini(ocrText) {
-            const prompt = `Bạn là một trợ lý kế toán chuyên nghiệp. Phân tích văn bản hóa đơn sau và trích xuất các thông tin sau vào một đối tượng JSON.
-            Văn bản:
-            """
-            ${ocrText}
-            """
-            Các trường cần trích xuất:
-            - storeName: Tên cửa hàng
-            - date: Ngày hóa đơn (định dạng YYYY-MM-DD)
-            - total: Tổng số tiền (chỉ lấy số, không có đơn vị, ví dụ: 537000)
-            - items: Một mảng các sản phẩm. Mỗi sản phẩm có: name (tên), quantity (số lượng), price (giá).
-            Nếu không tìm thấy thông tin, hãy để giá trị rỗng ("") hoặc 0.`;
-
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            storeName: { type: "STRING" },
-                            date: { type: "STRING" },
-                            total: { type: "NUMBER" },
-                            items: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        name: { type: "STRING" },
-                                        quantity: { type: "NUMBER" },
-                                        price: { type: "NUMBER" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-            const apiKey = "AIzaSyCOj3-xvtYhVbk4hx53wC1D8umPCnty7Zg";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            
             try {
-                const response = await fetch(apiUrl, {
+                const prompt = `Phân tích văn bản hóa đơn và trả về JSON với: storeName, date (YYYY-MM-DD), total (số), items (array). Văn bản: ${ocrText}`;
+                
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+                
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCOj3-xvtYhVbk4hx53wC1D8umPCnty7Zg`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                
+                if (!response.ok) throw new Error('API Error');
+                
                 const result = await response.json();
                 const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
                 return JSON.parse(jsonString);
             } catch (error) {
-                console.error('Gemini API Error:', error);
-                return { storeName: '', date: '', total: 0, items: [] };
+                console.error('Gemini Error:', error);
+                return parseReceiptFallback(ocrText);
             }
+        }
+        
+        function parseReceiptFallback(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            let total = 0;
+            const totalPatterns = [/tổng.*?(\d{1,3}(?:[,.]?\d{3})*)/i, /total.*?(\d{1,3}(?:[,.]?\d{3})*)/i];
+            for (const line of lines) {
+                for (const pattern of totalPatterns) {
+                    const match = line.match(pattern);
+                    if (match) {
+                        total = parseInt(match[1].replace(/[,.]/g, ''));
+                        break;
+                    }
+                }
+                if (total > 0) break;
+            }
+            
+            let storeName = lines.find(line => line.length > 3 && !line.match(/^\d/)) || '';
+            let date = '';
+            const dateMatch = text.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+            if (dateMatch) date = dateMatch[1];
+            
+            return { storeName, date, total, items: [] };
         }
 
         function clearResults() {

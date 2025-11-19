@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhập Hóa Đơn Bằng Giọng Nói</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4">
+    <div class="max-w-2xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Nhập Hóa Đơn Bằng Giọng Nói</h1>
+            <p class="text-gray-600">Nói thông tin hóa đơn để tự động nhập vào hệ thống</p>
+        </div>
+
+        <!-- Voice Input Card -->
+        <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+            <div class="text-center mb-6">
+                <div id="micIcon" class="w-24 h-24 mx-auto bg-red-500 rounded-full flex items-center justify-center text-xl text-white mb-4 cursor-pointer transition-all" onclick="toggleRecording()">
+                    MIC
+                </div>
+                <div id="status" class="text-lg font-medium text-gray-700">Nhấn microphone để bắt đầu</div>
+            </div>
+
+            <!-- Voice Text Display -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6 min-h-24">
+                <div class="text-sm text-gray-500 mb-2">Văn bản nhận diện:</div>
+                <div id="voiceText" class="text-gray-800 font-medium">Chưa có dữ liệu...</div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 rounded-lg p-4 mb-6">
+                <div class="text-sm font-medium text-blue-800 mb-2">Hướng dẫn nói:</div>
+                <div class="text-sm text-blue-700 space-y-1">
+                    <div>• "Cửa hàng ABC, ngày 15/12/2024, tổng tiền 150000"</div>
+                    <div>• "Siêu thị XYZ, hôm nay, 250 nghìn đồng"</div>
+                    <div>• "Mua tại shop DEF, 500k"</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <button id="processBtn" class="flex-1 bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed" onclick="processVoice()" disabled>
+                    Xử Lý Thông Tin
+                </button>
+                <button onclick="clearVoice()" class="bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600">
+                    Xóa
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div id="resultsCard" class="bg-white rounded-xl shadow-lg p-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Thông Tin Hóa Đơn</h2>
+            <div id="results" class="space-y-4"></div>
+            
+            <div class="flex gap-3 mt-6">
+                <button id="saveBtn" class="flex-1 bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600" onclick="saveExpense()">
+                    Lưu Chi Tiêu
+                </button>
+                <button onclick="window.location.href='index.html'" class="bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600">
+                    Về Trang Chủ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isRecording = false;
+        let voiceText = '';
+        let currentData = null;
+
+        // Kiểm tra hỗ trợ Speech Recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            document.getElementById('status').textContent = 'Trình duyệt không hỗ trợ nhận diện giọng nói!';
+            document.getElementById('micIcon').style.backgroundColor = '#gray-500';
+        }
+
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.lang = 'vi-VN';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('status').textContent = 'Đang nghe... Hãy nói thông tin hóa đơn';
+                document.getElementById('micIcon').classList.add('pulse-animation');
+                document.getElementById('micIcon').style.backgroundColor = '#ef4444';
+            };
+            
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                voiceText = finalTranscript || interimTranscript;
+                document.getElementById('voiceText').textContent = voiceText || 'Đang nghe...';
+                
+                if (finalTranscript) {
+                    document.getElementById('processBtn').disabled = false;
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Lỗi nhận diện:', event.error);
+                document.getElementById('status').textContent = 'Lỗi: ' + event.error;
+                stopRecording();
+            };
+            
+            recognition.start();
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isRecording = false;
+            document.getElementById('status').textContent = 'Đã dừng nghe';
+            document.getElementById('micIcon').classList.remove('pulse-animation');
+            document.getElementById('micIcon').style.backgroundColor = '#6b7280';
+            
+            if (voiceText) {
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+
+        function processVoice() {
+            if (!voiceText) {
+                alert('Chưa có dữ liệu giọng nói!');
+                return;
+            }
+            
+            currentData = parseVoiceToReceipt(voiceText);
+            displayResults(currentData);
+        }
+
+        function parseVoiceToReceipt(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Tìm tên cửa hàng
+            let storeName = '';
+            const storePatterns = [
+                /cửa hàng ([^,]+)/i,
+                /siêu thị ([^,]+)/i,
+                /shop ([^,]+)/i,
+                /tại ([^,]+)/i,
+                /mua ở ([^,]+)/i
+            ];
+            for (const pattern of storePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    storeName = match[1].trim();
+                    break;
+                }
+            }
+            
+            // Tìm ngày
+            let date = '';
+            const dateMatch = text.match(/(\d{1,2})[\s\/\-](\d{1,2})[\s\/\-](\d{2,4})/);
+            if (dateMatch) {
+                const day = dateMatch[1].padStart(2, '0');
+                const month = dateMatch[2].padStart(2, '0');
+                let year = dateMatch[3];
+                if (year.length === 2) year = '20' + year;
+                date = `${year}-${month}-${day}`;
+            } else if (text.includes('hôm nay')) {
+                date = new Date().toISOString().split('T')[0];
+            }
+            
+            // Tìm tổng tiền - cải thiện
+            let total = 0;
+            
+            // Chuyển đổi số bằng chữ
+            const textToNumber = {
+                'một': '1', 'hai': '2', 'ba': '3', 'bốn': '4', 'năm': '5',
+                'sáu': '6', 'bảy': '7', 'tám': '8', 'chín': '9', 'mười': '10',
+                'trăm': '00', 'nghìn': '000', 'ngàn': '000', 'triệu': '000000'
+            };
+            
+            let processedText = text.toLowerCase();
+            for (const [word, num] of Object.entries(textToNumber)) {
+                processedText = processedText.replace(new RegExp(word, 'g'), num);
+            }
+            
+            const moneyPatterns = [
+                /tổng\s*(?:tiền|cộng|số tiền)?\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(?:là|bằng|có)\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(\d+(?:[,.]?\d{3})*)\s*(?:đồng|vnđ|vnd|k|nghìn|ngàn)/i,
+                /(?:tiền|số tiền|thành tiền)\s*(\d+(?:[,.]?\d{3})*)/i,
+                /(\d{4,})/g
+            ];
+            
+            const allNumbers = [];
+            
+            for (const pattern of moneyPatterns) {
+                if (pattern.global) {
+                    const matches = [...processedText.matchAll(pattern)];
+                    for (const match of matches) {
+                        const num = parseInt(match[0].replace(/[,.]/g, ''));
+                        if (num > 0) allNumbers.push(num);
+                    }
+                } else {
+                    const match = processedText.match(pattern);
+                    if (match) {
+                        const num = parseInt(match[1].replace(/[,.]/g, ''));
+                        if (num > 0) allNumbers.push(num);
+                    }
+                }
+            }
+            
+            if (allNumbers.length > 0) {
+                total = Math.max(...allNumbers);
+            }
+            
+            return {
+                storeName: storeName || 'Không xác định',
+                date: date || new Date().toISOString().split('T')[0],
+                total: total
+            };
+        }
+
+        function displayResults(data) {
+            const html = `
+                <div class="bg-blue-50 p-6 rounded-lg text-center">
+                    <div class="text-sm font-medium text-blue-600 mb-2">Cửa hàng</div>
+                    <div class="text-3xl font-bold text-blue-800">${data.storeName}</div>
+                </div>
+            `;
+            
+            document.getElementById('results').innerHTML = html;
+            document.getElementById('resultsCard').classList.remove('hidden');
+        }
+
+        async function saveExpense() {
+            if (!currentData || !currentData.total) {
+                alert('Không có thông tin để lưu!');
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Vui lòng đăng nhập trước!');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/giao-dich', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        loai: 'chi',
+                        so_tien: currentData.total,
+                        mo_ta: `Hóa đơn từ ${currentData.storeName} - Nhập bằng giọng nói`,
+                        ngay: currentData.date
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Đã lưu chi tiêu thành công!');
+                    document.getElementById('saveBtn').disabled = true;
+                    document.getElementById('saveBtn').textContent = 'Đã lưu';
+                } else {
+                    const error = await response.json();
+                    alert(`Lỗi: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Lỗi:', error);
+                alert('Không thể kết nối server!');
+            }
+        }
+
+        function clearVoice() {
+            voiceText = '';
+            currentData = null;
+            document.getElementById('voiceText').textContent = 'Chưa có dữ liệu...';
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('resultsCard').classList.add('hidden');
+            document.getElementById('status').textContent = 'Nhấn microphone để bắt đầu';
+        }
+    </script>
+</body>
+</html>
