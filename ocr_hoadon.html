@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xuất Thông Tin Hóa Đơn Siêu Thị - OCR</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, getDoc, collection, query, where, getDocs,deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebase = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, doc, addDoc, getDoc, collection, query, where, getDocs,deleteDoc, serverTimestamp
+        };
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .card { background-color: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 24px; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
+        .btn-secondary { background-color: #f1f5f9; color: #475569; transition: background-color 0.2s ease; }
+        .btn-secondary:hover { background-color: #e2e8f0; }
+        .upload-area { border: 2px dashed #cbd5e1; transition: border-color 0.2s ease, background-color 0.2s ease; }
+        .upload-area:hover { border-color: #667eea; background-color: #f8fafc; }
+        .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4facfe; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-button {
+            @apply px-4 py-2 text-gray-600 font-semibold rounded-lg transition-colors;
+        }
+        .tab-button.active {
+            @apply bg-blue-50 text-blue-700;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+    <div class="container">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-gray-800 mb-2">🧾 Trích Xuất Thông Tin Hóa Đơn</h1>
+            <p class="text-gray-500 text-lg">Sử dụng công nghệ OCR & AI để phân tích dữ liệu hóa đơn của bạn.</p>
+        </header>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            <!-- Left Section (Tabs) -->
+            <div class="card">
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button id="inputTab" class="tab-button active">Tải lên & Phân tích</button>
+                    <button id="searchTab" class="tab-button">Hóa đơn đã lưu</button>
+                </div>
+                
+                <!-- Input/Upload Section -->
+                <div id="inputSection">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Tải lên hóa đơn</h2>
+                    <select id="languageSelect" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm w-full mb-4">
+                        <option value="auto">Tự động nhận diện</option>
+                        <option value="eng">English</option>
+                        <option value="vie">Tiếng Việt</option>
+                    </select>
+                    
+                    <div class="upload-area rounded-lg p-8 text-center cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                        <div class="text-5xl text-gray-400 mb-4">📷</div>
+                        <p class="text-xl font-medium text-gray-700 mb-2">Kéo thả file vào đây</p>
+                        <p class="text-gray-400 text-sm">Hoặc nhấn để chọn file</p>
+                        <input type="file" id="fileInput" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
+                    </div>
+
+                    <div id="previewContainer" class="mt-6 hidden">
+                        <img id="previewImage" class="w-full max-h-80 object-contain rounded-lg mb-4 shadow-sm" alt="Preview">
+                        <button id="processBtn" class="btn-primary text-white font-medium py-3 px-6 rounded-lg w-full">
+                            ✨ Phân Tích Hóa Đơn
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Section -->
+                <div id="searchSection" class="hidden">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Tra cứu hóa đơn đã lưu</h2>
+                    <input type="text" id="searchBox" placeholder="Tìm kiếm theo tên cửa hàng hoặc ngày..." class="w-full border border-gray-300 rounded-lg p-2 text-gray-700 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div id="savedBillsContainer" class="max-h-96 overflow-y-auto">
+                        <p class="text-center text-gray-400 py-4">Sử dụng ô tìm kiếm phía trên để tra cứu.</p>
+                    </div>
+                </div>
+
+                <div id="loadingSection" class="text-center py-8 hidden">
+                    <div class="loading-spinner mx-auto"></div>
+                    <p class="text-gray-500 mt-4">Đang xử lý hình ảnh...</p>
+                </div>
+            </div>
+
+            <!-- Right Section (Results) -->
+            <div class="card">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-700">Thông Tin Hóa Đơn</h2>
+                    <div class="flex space-x-2">
+                        <button id="copyBtn" class="btn-secondary text-gray-700 font-medium py-2 px-4 rounded-lg text-sm hidden">📋 Sao chép</button>
+                        <button id="exportBtn" class="btn-primary text-white font-medium py-2 px-4 rounded-lg text-sm hidden">📊 Xuất Excel</button>
+                        <button id="saveExpenseBtn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm hidden">💰 Lưu Chi Tiêu</button>
+                        <button id="saveBtn" class="btn-primary text-white font-medium py-2 px-4 rounded-lg text-sm hidden">💾 Lưu Hóa Đơn</button>
+                    </div>
+                </div>
+
+                <div id="resultsContent" class="space-y-4 text-gray-700">
+                    <div class="text-center text-gray-400 py-16">
+                        <div class="text-5xl mb-4">📋</div>
+                        <p>Tải lên hình ảnh hóa đơn để bắt đầu phân tích</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFile = null;
+        let currentReceiptInfo = null;
+        let currentRawText = null;
+        let db;
+        let auth;
+        let userId;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Khởi tạo Firebase
+            const firebaseConfig = {
+  apiKey: "AIzaSyDousMef4BCkpjkH2NNsPYYt5pywPneE-U",
+  authDomain: "hoadonocr-696fb.firebaseapp.com",
+  projectId: "hoadonocr-696fb",
+  storageBucket: "hoadonocr-696fb.firebasestorage.app",
+  messagingSenderId: "502220052225",
+  appId: "1:502220052225:web:e8ea301cfbbb60c93ead00",
+  measurementId: "G-B1FFZ64H5N"
+};
+            const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore } = window.firebase;
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    await signInAnonymously(auth);
+                }
+            });
+
+            // Gắn sự kiện cho các nút
+            document.getElementById('inputTab').addEventListener('click', () => switchTab('input'));
+            document.getElementById('searchTab').addEventListener('click', () => switchTab('search'));
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            document.getElementById('processBtn').addEventListener('click', processImage);
+            document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+            document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+            document.getElementById('saveExpenseBtn').addEventListener('click', saveToExpense);
+            document.getElementById('saveBtn').addEventListener('click', saveReceipt);
+            document.getElementById('searchBox').addEventListener('input', loadSavedBills);
+            
+            // Tải hóa đơn đã lưu ban đầu
+            loadSavedBills();
+        });
+
+        // Hàm chuyển đổi tab
+        function switchTab(tab) {
+            const inputSection = document.getElementById('inputSection');
+            const searchSection = document.getElementById('searchSection');
+            const inputTabBtn = document.getElementById('inputTab');
+            const searchTabBtn = document.getElementById('searchTab');
+            const resultsContent = document.getElementById('resultsContent');
+
+            if (tab === 'input') {
+                inputSection.classList.remove('hidden');
+                searchSection.classList.add('hidden');
+                inputTabBtn.classList.add('active');
+                searchTabBtn.classList.remove('active');
+                if (uploadedFile) {
+                    displayResults(currentReceiptInfo, currentRawText);
+                } else {
+                    resultsContent.innerHTML = `<div class="text-center text-gray-400 py-16"><div class="text-5xl mb-4">📋</div><p>Tải lên hình ảnh hóa đơn để bắt đầu phân tích</p></div>`;
+                    document.getElementById('copyBtn').classList.add('hidden');
+                    document.getElementById('exportBtn').classList.add('hidden');
+                    document.getElementById('saveBtn').classList.add('hidden');
+                }
+            } else {
+                inputSection.classList.add('hidden');
+                searchSection.classList.remove('hidden');
+                inputTabBtn.classList.remove('active');
+                searchTabBtn.classList.add('active');
+                resultsContent.innerHTML = `<div class="text-center text-gray-400 py-16"><div class="text-5xl mb-4">📋</div><p>Chọn một hóa đơn đã lưu để xem.</p></div>`;
+                loadSavedBills();
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            uploadedFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('previewContainer').classList.remove('hidden');
+                document.getElementById('saveBtn').classList.add('hidden');
+                clearResults();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function processImage() {
+            if (!uploadedFile) return;
+            const loadingSection = document.getElementById('loadingSection');
+            const resultsContent = document.getElementById('resultsContent');
+            const previewContainer = document.getElementById('previewContainer');
+            const saveBtn = document.getElementById('saveBtn');
+            const selectedLanguage = document.getElementById('languageSelect').value;
+
+            loadingSection.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+
+            try {
+                let ocrLanguage = selectedLanguage === 'auto' ? 'eng+vie' : selectedLanguage;
+                
+                const { data: { text } } = await Tesseract.recognize(uploadedFile, ocrLanguage, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            loadingSection.innerHTML = `<div class="loading-spinner mx-auto"></div><p class="text-gray-500 mt-4">Đang nhận diện văn bản... ${progress}%</p>`;
+                        }
+                    }
+                });
+
+                currentRawText = text;
+                currentReceiptInfo = await parseWithGemini(currentRawText);
+                displayResults(currentReceiptInfo, currentRawText);
+                
+                document.getElementById('copyBtn').classList.remove('hidden');
+                document.getElementById('exportBtn').classList.remove('hidden');
+                document.getElementById('saveExpenseBtn').classList.remove('hidden');
+                saveBtn.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('OCR Error:', error);
+                resultsContent.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg"><strong>Lỗi xử lý:</strong> Không thể đọc được hóa đơn.</div>`;
+            } finally {
+                loadingSection.classList.add('hidden');
+            }
+        }
+
+        // --- Hàm phân tích thông minh bằng Gemini AI ---
+        async function parseWithGemini(ocrText) {
+            const prompt = `Bạn là một trợ lý kế toán chuyên nghiệp. Phân tích văn bản hóa đơn sau và trích xuất các thông tin sau vào một đối tượng JSON.
+            Văn bản:
+            """
+            ${ocrText}
+            """
+            Các trường cần trích xuất:
+            - storeName: Tên cửa hàng
+            - date: Ngày hóa đơn (định dạng YYYY-MM-DD)
+            - total: Tổng số tiền (chỉ lấy số, không có đơn vị, ví dụ: 537000)
+            - items: Một mảng các sản phẩm. Mỗi sản phẩm có: name (tên), quantity (số lượng), price (giá).
+            Nếu không tìm thấy thông tin, hãy để giá trị rỗng ("") hoặc 0.`;
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            storeName: { type: "STRING" },
+                            date: { type: "STRING" },
+                            total: { type: "NUMBER" },
+                            items: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        name: { type: "STRING" },
+                                        quantity: { type: "NUMBER" },
+                                        price: { type: "NUMBER" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            const apiKey = "AIzaSyCOj3-xvtYhVbk4hx53wC1D8umPCnty7Zg";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const jsonString = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                return JSON.parse(jsonString);
+            } catch (error) {
+                console.error('Gemini API Error:', error);
+                return { storeName: '', date: '', total: 0, items: [] };
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('resultsContent').innerHTML = `<div class="text-center text-gray-400 py-16"><div class="text-5xl mb-4">📋</div><p>Tải lên hình ảnh hóa đơn để bắt đầu phân tích</p></div>`;
+            document.getElementById('copyBtn').classList.add('hidden');
+            document.getElementById('exportBtn').classList.add('hidden');
+            document.getElementById('saveExpenseBtn').classList.add('hidden');
+            document.getElementById('saveBtn').classList.add('hidden');
+        }
+
+        async function saveToExpense() {
+            if (!currentReceiptInfo || !currentReceiptInfo.total) {
+                alert('Không có thông tin số tiền để lưu!');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Vui lòng đăng nhập để lưu chi tiêu!');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const transactionData = {
+                loai: 'chi',
+                so_tien: currentReceiptInfo.total,
+                mo_ta: `Hóa đơn từ ${currentReceiptInfo.storeName || 'Cửa hàng'} - ${currentReceiptInfo.date || ''}`,
+                ngay: currentReceiptInfo.date || new Date().toISOString().split('T')[0]
+            };
+
+            console.log('Gửi dữ liệu:', transactionData);
+
+            try {
+                const response = await fetch('http://localhost:5000/api/giao-dich', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(transactionData)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (response.ok) {
+                    alert('✅ Đã lưu vào chi tiêu thành công!');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Lỗi response:', errorText);
+                    try {
+                        const error = JSON.parse(errorText);
+                        alert(`❌ Lỗi: ${error.message || 'Không thể lưu chi tiêu'}`);
+                    } catch {
+                        alert(`❌ Lỗi: ${errorText}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Lỗi khi lưu chi tiêu:', error);
+                alert('❌ Không thể kết nối đến server! Kiểm tra backend đang chạy trên port 5000');
+            }
+        }
+
+        function displayResults(receiptInfo, rawText) {
+            const resultsContent = document.getElementById('resultsContent');
+            const itemsHtml = receiptInfo.items.length > 0 ? 
+                receiptInfo.items.map(item => `
+                    <tr>
+                        <td class="p-3 text-sm text-gray-600 whitespace-nowrap">${item.name}</td>
+                        <td class="p-3 text-sm text-gray-600 whitespace-nowrap">${item.quantity}</td>
+                        <td class="p-3 text-sm text-gray-600 text-right whitespace-nowrap">${item.price} VNĐ</td>
+                    </tr>
+                `).join('') : 
+                '<tr><td colspan="3" class="p-4 text-center text-gray-400">Không tìm thấy sản phẩm.</td></tr>';
+
+            resultsContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200"><div class="text-xs font-semibold text-gray-500 uppercase">Tên Cửa Hàng</div><div class="mt-1 text-lg font-medium text-gray-800">${receiptInfo.storeName || 'Không xác định'}</div></div>
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200"><div class="text-xs font-semibold text-gray-500 uppercase">Ngày</div><div class="mt-1 text-lg font-medium text-gray-800">${receiptInfo.date || 'Không xác định'}</div></div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Danh Sách Sản Phẩm</h3>
+                    <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200 bg-white">
+                            <thead class="bg-gray-50"><tr><th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên Sản Phẩm</th><th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số Lượng</th><th class="p-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá</th></tr></thead>
+                            <tbody class="divide-y divide-gray-200">${itemsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                ${receiptInfo.total ? `<div class="mt-6 flex justify-end"><div class="p-4 rounded-lg bg-indigo-50 gradient-bg text-white shadow-md"><div class="text-sm font-medium uppercase">Tổng Cộng</div><div class="mt-1 text-3xl font-extrabold">${receiptInfo.total} VNĐ</div></div></div>` : ''}
+                
+                <div class="mt-6"><details class="p-4 rounded-lg bg-gray-50 border border-gray-200"><summary class="cursor-pointer font-medium text-gray-700">Xem Văn Bản Gốc</summary><pre class="mt-4 text-xs text-gray-600 whitespace-pre-wrap">${rawText}</pre></details></div>`;
+        }
+
+        // --- Firebase Firestore Functions ---
+        async function saveReceipt() {
+    if (!currentReceiptInfo) {
+        alert('Không có dữ liệu để lưu!');
+        return;
+    }
+    if (!userId) {
+        alert('Không thể lưu. Vui lòng đăng nhập.');
+        return;
+    }
+
+    const docData = {
+        storeName: currentReceiptInfo.storeName,
+        date: currentReceiptInfo.date,
+        total: currentReceiptInfo.total,
+        items: currentReceiptInfo.items,
+        rawText: currentRawText,
+        timestamp: window.firebase.serverTimestamp(),
+        userId: userId,
+    };
+
+    try {
+        const { collection, addDoc } = window.firebase;
+        await addDoc(collection(db, "users", userId, "invoices"), docData);
+        alert('✅ Đã lưu hóa đơn thành công!');
+        document.getElementById('saveBtn').classList.add('hidden');
+        loadSavedBills();
+    } catch (error) {
+        console.error(" Lỗi khi lưu tài liệu:", error);
+        alert(' Lỗi khi lưu hóa đơn.');
+    }
+}
+
+
+        async function loadSavedBills() {
+    const container = document.getElementById('savedBillsContainer');
+    const searchBox = document.getElementById('searchBox');
+    const searchTerm = searchBox.value.toLowerCase();
+
+    if (!userId) {
+        container.innerHTML = `<p class="text-center text-gray-400 py-4">Đang kết nối...</p>`;
+        return;
+    }
+
+    let allBills = [];
+    try {
+        const { collection, query, getDocs } = window.firebase;
+        const q = query(collection(db, "users", userId, "invoices"));  // 🔹 dùng path chuẩn
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(doc => {
+            allBills.push({ id: doc.id, ...doc.data() });
+        });
+    } catch (error) {
+        console.error(" Lỗi khi tải hóa đơn:", error);
+        container.innerHTML = `<p class="text-center text-red-500 py-4">Lỗi khi tải hóa đơn.</p>`;
+        return;
+    }
+
+    const filteredBills = allBills.filter(bill =>
+        (bill.storeName && bill.storeName.toLowerCase().includes(searchTerm)) ||
+        (bill.date && bill.date.includes(searchTerm)) ||
+        (bill.total && String(bill.total).includes(searchTerm))
+    );
+
+    if (filteredBills.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-400 py-4">Không tìm thấy hóa đơn nào.</p>`;
+        return;
+    }
+
+    container.innerHTML = filteredBills.map(bill => `
+        <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-2 flex justify-between items-center">
+            <div class="cursor-pointer flex-1" onclick="viewSavedBill('${bill.id}')">
+                <div class="font-semibold text-gray-800">${bill.storeName || 'Không tên'}</div>
+                <div class="text-sm text-gray-500">Ngày: ${bill.date || 'N/A'} - Tổng: ${bill.total || 'N/A'} VNĐ</div>
+            </div>
+            <button class="text-red-500 hover:text-red-700 font-bold ml-4" onclick="deleteSavedBill('${bill.id}')">🗑️</button>
+        </div>
+    `).join('');
+}
+
+
+        async function viewSavedBill(id) {
+    if (!userId) return;
+    try {
+        const { doc, getDoc } = window.firebase;
+        const docRef = doc(db, "users", userId, "invoices", id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const bill = docSnap.data();
+            currentReceiptInfo = {
+                storeName: bill.storeName,
+                date: bill.date,
+                total: bill.total,
+                items: bill.items || [],
+            };
+            currentRawText = bill.rawText;
+            displayResults(currentReceiptInfo, currentRawText);
+            document.getElementById('saveBtn').classList.add('hidden');
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('copyBtn').classList.remove('hidden');
+            document.getElementById('exportBtn').classList.remove('hidden');
+            switchTab('input'); // Quay lại tab nhập liệu để xem kết quả
+        }
+    } catch (error) {
+        console.error(" Lỗi khi xem hóa đơn:", error);
+        alert(' Lỗi khi tải hóa đơn đã lưu.');
+    }
+}
+
+async function deleteSavedBill(id) {
+    if (!userId) return;
+    if (!confirm("Bạn có chắc muốn xóa hóa đơn này không?")) return;
+
+    try {
+        const { doc, deleteDoc } = window.firebase;
+        const docRef = doc(db, "users", userId, "invoices", id);
+        await deleteDoc(docRef);
+        alert("✅ Đã xóa hóa đơn thành công!");
+        loadSavedBills(); // Refresh danh sách sau khi xóa
+    } catch (error) {
+        console.error(" Lỗi khi xóa hóa đơn:", error);
+        alert(" Lỗi khi xóa hóa đơn.");
+    }
+}
+
+
+
+        function copyToClipboard() {
+            const resultsContent = document.getElementById('resultsContent');
+            if (!resultsContent.textContent.trim()) { alert('Không có dữ liệu để sao chép!'); return; }
+            navigator.clipboard.writeText(resultsContent.textContent).then(() => { alert('✅ Đã sao chép thông tin hóa đơn vào clipboard!'); }).catch(() => { alert('❌ Không thể sao chép.'); });
+        }
+
+        function exportToExcel() {
+            if (!currentReceiptInfo) { alert('Không có dữ liệu để xuất!'); return; }
+            const info = currentReceiptInfo;
+            const ws_data = [["Tên Cửa Hàng", info.storeName], ["Ngày", info.date], [], ["Tên Sản Phẩm", "Số Lượng", "Giá"], ...info.items.map(item => [item.name, item.quantity, item.price]), [], ["Tổng Cộng", "", info.total]];
+            const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "HoaDon");
+            XLSX.writeFile(wb, `HoaDon_${info.date || Date.now()}.xlsx`);
+        }
+    </script>
+</body>
+</html>

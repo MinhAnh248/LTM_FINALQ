@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Token</title>
+</head>
+<body>
+    <h1>Xóa token cũ và đăng nhập lại</h1>
+    <button onclick="clearToken()">Xóa Token Cũ</button>
+    
+    <script>
+        function clearToken() {
+            localStorage.removeItem('token');
+            alert('Đã xóa token cũ! Bây giờ hãy đăng nhập lại.');
+            window.location.href = 'index.html';
+        }
+        
+        // Tự động xóa
+        clearToken();
+    </script>
+</body>
+</html>
