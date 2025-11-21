@@ -13,7 +13,7 @@
 
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #717172 0%, #616062 100%);
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         min-height: 100vh;
         display: flex;
         justify-content: center;
@@ -56,25 +56,28 @@
 
       input:focus {
         outline: none;
-        border-color: #0e0e0e;
-        box-shadow: 0 0 5px rgba(18, 18, 18, 0.3);
+        border-color: #2196f3;
+        box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
       }
 
       button {
         width: 100%;
         padding: 12px;
-        background: #101010;
+        background: linear-gradient(135deg, #42a5f5 0%, #2196f3 100%);
         color: white;
         border: none;
         border-radius: 5px;
         font-size: 16px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.3s;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
       }
 
       button:hover {
-        background: #0b0b0b;
+        background: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
       }
 
       .toggle-form {
@@ -84,7 +87,7 @@
       }
 
       .toggle-form a {
-        color: #131314;
+        color: #2196f3;
         cursor: pointer;
         text-decoration: none;
         font-weight: 600;
@@ -133,11 +136,13 @@
       }
 
       .stat-card {
-        background: linear-gradient(135deg, #151515 0%, #373737 100%);
-        color: white;
+        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        color: #2e7d32;
         padding: 20px;
         border-radius: 10px;
         text-align: center;
+        border: 1px solid #a5d6a7;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
       }
 
       .stat-card h3 {
