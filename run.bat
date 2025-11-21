@@ -1,9 +1,0 @@
-@echo off
-echo Khoi dong he thong quan ly chi tieu...
-echo.
-echo Cai dat dependencies...
-pip install -r requirements.txt
-echo.
-echo Khoi dong server...
-python app_complete.py
-pause
