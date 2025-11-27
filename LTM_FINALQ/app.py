@@ -81,6 +81,10 @@ class VayNo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+@app.route('/health')
+def health():
+    return 'OK', 200
+
 @app.route('/')
 def index():
     import os
@@ -404,8 +408,9 @@ def ai_prediction():
 
 
 
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
