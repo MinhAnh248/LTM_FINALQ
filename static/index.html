@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Chi Tiêu</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        padding: 20px;
+      }
+
+      .auth-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        padding: 40px;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 500;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #2196f3;
+        box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #42a5f5 0%, #2196f3 100%);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+      }
+
+      button:hover {
+        background: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+      }
+
+      .toggle-form {
+        text-align: center;
+        margin-top: 20px;
+        color: #666;
+      }
+
+      .toggle-form a {
+        color: #2196f3;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .dashboard {
+        display: none;
+        background: white;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      }
+
+      .dashboard.active {
+        display: block;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 20px;
+      }
+
+      .header h1 {
+        color: #333;
+      }
+
+      .logout-btn {
+        background: #e74c3c;
+        padding: 10px 20px;
+        width: auto;
+      }
+
+      .logout-btn:hover {
+        background: #c0392b;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        color: #2e7d32;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #a5d6a7;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+      }
+
+      .stat-card h3 {
+        font-size: 14px;
+        margin-bottom: 10px;
+        opacity: 0.9;
+      }
+
+      .stat-card .value {
+        font-size: 28px;
+        font-weight: bold;
+      }
+
+      .section {
+        margin-bottom: 30px;
+      }
+
+      .section h2 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 20px;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+
+      table th {
+        background: #f5f5f5;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #ddd;
+      }
+
+      table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+      }
+
+      table tr:hover {
+        background: #f9f9f9;
+      }
+
+      .alert {
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .alert.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        display: block;
+      }
+
+      .alert.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        display: block;
+      }
+
+      .nav-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #f0f0f0;
+      }
+
+      .nav-tabs button {
+        background: none;
+        border: none;
+        padding: 10px 20px;
+        color: #666;
+        cursor: pointer;
+        font-weight: 600;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .nav-tabs button.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 10px;
+        }
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+        .nav-tabs {
+          flex-wrap: wrap;
+        }
+        .nav-tabs button {
+          font-size: 12px;
+          padding: 8px 12px;
+        }
+        table {
+          font-size: 12px;
+        }
+        table th,
+        table td {
+          padding: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Auth Forms -->
+      <div id="authContainer" class="auth-container">
+        <div id="loginForm">
+          <h2 style="margin-bottom: 30px; color: #333">Đăng Nhập</h2>
+          <div class="alert" id="loginAlert"></div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="Nhập email" />
+          </div>
+          <div class="form-group">
+            <label>Mật Khẩu</label>
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="Nhập mật khẩu"
+            />
+          </div>
+          <button onclick="login()">Đăng Nhập</button>
+          <div class="toggle-form">
+            Chưa có tài khoản? <a onclick="toggleForm()">Đăng Ký</a>
+          </div>
+        </div>
+
+        <div id="registerForm" style="display: none">
+          <h2 style="margin-bottom: 30px; color: #333">Đăng Ký</h2>
+          <div class="alert" id="registerAlert"></div>
+          <div class="form-group">
+            <label>Họ Tên</label>
+            <input type="text" id="registerName" placeholder="Nhập họ tên" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="registerEmail" placeholder="Nhập email" />
+          </div>
+          <div class="form-group">
+            <label>Mật Khẩu</label>
+            <input
+              type="password"
+              id="registerPassword"
+              placeholder="Nhập mật khẩu"
+            />
+          </div>
+          <div class="form-group">
+            <label>Số Dư Ban Đầu</label>
+            <input
+              type="number"
+              id="registerBalance"
+              placeholder="Nhập số dư"
+              value="0"
+            />
+          </div>
+          <button onclick="register()">Đăng Ký</button>
+          <div class="toggle-form">
+            Đã có tài khoản? <a onclick="toggleForm()">Đăng Nhập</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div id="dashboard" class="dashboard">
+        <div class="header">
+          <h1>Quản Lý Chi Tiêu</h1>
+          <button class="logout-btn" onclick="logout()">Đăng Xuất</button>
+        </div>
+
+        <div class="alert" id="dashboardAlert"></div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <h3>Thu Nhập Tháng Này</h3>
+            <div class="value" id="monthlyIncome">0 VNĐ</div>
+          </div>
+          <div class="stat-card">
+            <h3>Chi Tiêu Tháng Này</h3>
+            <div class="value" id="monthlyExpense">0 VNĐ</div>
+          </div>
+          <div class="stat-card">
+            <h3>Số Dư Hiện Tại</h3>
+            <div class="value" id="currentBalance">0 VNĐ</div>
+          </div>
+        </div>
+
+        <div class="nav-tabs">
+          <button class="active" onclick="switchTab('transactions')">
+            Giao Dịch
+          </button>
+          <button onclick="switchTab('categories')">Danh Mục</button>
+          <button
+            onclick="window.location.href='ocr_hoadon.html'"
+            style="
+              background: linear-gradient(135deg, #f8fafa 0%, #f8fafa 100%);
+              color: #666;
+              border-radius: 5px;
+            "
+          >
+            Quét Hóa Đơn
+          </button>
+          <button
+            onclick="window.location.href='voice_receipt.html'"
+            style="
+              background: linear-gradient(135deg, #f5f6f5 0%, #f8f9f8 100%);
+              color: #666;
+              border-radius: 5px;
+            "
+          >
+            Giọng Nói
+          </button>
+          <button onclick="switchTab('statistics')">Thống Kê</button>
+          <button onclick="switchTab('debt')">Vay Nợ</button>
+          <button onclick="switchTab('savings')">Tiết Kiệm</button>
+          <button onclick="switchTab('profile')">Hồ Sơ</button>
+        </div>
+
+        <!-- Transactions Tab -->
+        <div id="transactionsTab" class="section">
+          <h2>Quản Lý Giao Dịch</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Danh Mục</label>
+              <select
+                id="transactionCategory"
+                style="
+                  width: 100%;
+                  padding: 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 5px;
+                "
+              >
+                <option value="">Chọn danh mục</option>
+              </select>
+              <div style="margin-top: 8px; font-size: 12px; color: #666">
+                Gợi ý:
+                <span
+                  style="color: #667eea; cursor: pointer"
+                  onclick="showCategorySuggestions()"
+                  >Xem danh mục phổ biến</span
+                >
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Số Tiền</label>
+              <input
+                type="number"
+                id="transactionAmount"
+                placeholder="Nhập số tiền"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mô Tả</label>
+            <input
+              type="text"
+              id="transactionDescription"
+              placeholder="Nhập mô tả"
+            />
+          </div>
+          <button onclick="addTransaction()">Thêm Giao Dịch</button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px">
+            Lịch Sử Giao Dịch
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Danh Mục</th>
+                <th>Số Tiền</th>
+                <th>Mô Tả</th>
+                <th>Ngày</th>
+              </tr>
+            </thead>
+            <tbody id="transactionList"></tbody>
+          </table>
+        </div>
+
+        <!-- Categories Tab -->
+        <div id="categoriesTab" class="section" style="display: none">
+          <h2>Quản Lý Danh Mục</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Loại Danh Mục</label>
+              <select
+                id="categoryType"
+                style="
+                  width: 100%;
+                  padding: 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 5px;
+                "
+              >
+                <option value="Chi tiêu">Chi Tiêu</option>
+                <option value="Thu nhập">Thu Nhập</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tên Danh Mục</label>
+              <input
+                type="text"
+                id="categoryName"
+                placeholder="Nhập tên danh mục"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mô Tả</label>
+            <input
+              type="text"
+              id="categoryDescription"
+              placeholder="Nhập mô tả"
+            />
+          </div>
+          <button onclick="addCategory()">Thêm Danh Mục</button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px">
+            Danh Sách Danh Mục
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tên Danh Mục</th>
+                <th>Loại</th>
+                <th>Mô Tả</th>
+              </tr>
+            </thead>
+            <tbody id="categoryList"></tbody>
+          </table>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div id="statisticsTab" class="section" style="display: none">
+          <h2>Thống Kê Chi Tiêu</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tháng</label>
+              <input
+                type="number"
+                id="statMonth"
+                min="1"
+                max="12"
+                placeholder="Tháng"
+              />
+            </div>
+            <div class="form-group">
+              <label>Năm</label>
+              <input type="number" id="statYear" placeholder="Năm" />
+            </div>
+          </div>
+          <button onclick="loadDetailedStats()">Xem Thống Kê</button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px">
+            Báo Cáo Chi Tiết
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Danh Mục</th>
+                <th>Loại</th>
+                <th>Tổng Tiền</th>
+              </tr>
+            </thead>
+            <tbody id="statsList"></tbody>
+          </table>
+        </div>
+
+        <!-- Debt Tab -->
+        <div id="debtTab" class="section" style="display: none">
+          <h2>Quản Lý Vay Nợ</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Họ Tên</label>
+              <input
+                type="text"
+                id="debtName"
+                placeholder="Tên người vay/cho vay"
+              />
+            </div>
+            <div class="form-group">
+              <label>Loại</label>
+              <select
+                id="debtType"
+                style="
+                  width: 100%;
+                  padding: 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 5px;
+                "
+              >
+                <option value="Cho Vay">Cho Vay</option>
+                <option value="Mượn Nợ">Mượn Nợ</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Số Tiền</label>
+              <input type="number" id="debtAmount" placeholder="Số tiền" />
+            </div>
+            <div class="form-group">
+              <label>Lãi Suất (%)</label>
+              <input
+                type="number"
+                id="debtRate"
+                placeholder="Lãi suất"
+                value="0"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Hạn Trả</label>
+            <input type="date" id="debtDue" />
+          </div>
+          <button onclick="addDebt()">Thêm Khoản Vay/Nợ</button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px">
+            Danh Sách Vay Nợ
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Họ Tên</th>
+                <th>Loại</th>
+                <th>Số Tiền</th>
+                <th>Trạng Thái</th>
+                <th>Hạn Trả</th>
+              </tr>
+            </thead>
+            <tbody id="debtList"></tbody>
+          </table>
+        </div>
+
+        <!-- Savings Tab -->
+        <div id="savingsTab" class="section" style="display: none">
+          <h2>Kế Hoạch Tiết Kiệm</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tên Mục Tiêu</label>
+              <input type="text" id="savingName" placeholder="Ví dụ: Mua nhà" />
+            </div>
+            <div class="form-group">
+              <label>Số Tiền Mục Tiêu</label>
+              <input type="number" id="savingTarget" placeholder="Số tiền" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ngày Kết Thúc</label>
+            <input type="date" id="savingEnd" />
+          </div>
+          <button onclick="addSaving()">Tạo Mục Tiêu</button>
+
+          <h3 style="margin-top: 30px; margin-bottom: 15px">
+            Danh Sách Tiết Kiệm
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tên Mục Tiêu</th>
+                <th>Mục Tiêu</th>
+                <th>Trạng Thái</th>
+                <th>Ngày KT</th>
+              </tr>
+            </thead>
+            <tbody id="savingsList"></tbody>
+          </table>
+        </div>
+
+        <!-- Profile Tab -->
+        <div id="profileTab" class="section" style="display: none">
+          <h2>Hồ Sơ Cá Nhân</h2>
+          <div class="form-group">
+            <label>Họ Tên</label>
+            <input type="text" id="profileName" placeholder="Nhập họ tên" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              id="profileEmail"
+              placeholder="Nhập email"
+              disabled
+            />
+          </div>
+          <div class="form-group">
+            <label>Mật Khẩu Mới</label>
+            <input
+              type="password"
+              id="profilePassword"
+              placeholder="Nhập mật khẩu mới"
+            />
+          </div>
+          <button onclick="updateProfile()">Cập Nhật Hồ Sơ</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:5000/api";
+      let token = localStorage.getItem("token");
+
+      if (token) {
+        showDashboard();
+        loadData();
+      }
+
+      function toggleForm() {
+        document.getElementById("loginForm").style.display =
+          document.getElementById("loginForm").style.display === "none"
+            ? "block"
+            : "none";
+        document.getElementById("registerForm").style.display =
+          document.getElementById("registerForm").style.display === "none"
+            ? "block"
+            : "none";
+      }
+
+      async function login() {
+        const email = document.getElementById("loginEmail").value;
+        const password = document.getElementById("loginPassword").value;
+
+        try {
+          const response = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, mat_khau: password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            localStorage.setItem("token", data.access_token);
+            token = data.access_token;
+            showDashboard();
+            loadData();
+          } else {
+            showAlert("loginAlert", data.message, "error");
+          }
+        } catch (error) {
+          showAlert("loginAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function register() {
+        const name = document.getElementById("registerName").value;
+        const email = document.getElementById("registerEmail").value;
+        const password = document.getElementById("registerPassword").value;
+        const balance =
+          parseFloat(document.getElementById("registerBalance").value) || 0;
+
+        try {
+          const response = await fetch(`${API_URL}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ho_ten: name,
+              email,
+              mat_khau: password,
+              so_du: balance,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            showAlert(
+              "registerAlert",
+              "Đăng ký thành công! Vui lòng đăng nhập",
+              "success"
+            );
+            setTimeout(() => toggleForm(), 1500);
+          } else {
+            showAlert("registerAlert", data.message, "error");
+          }
+        } catch (error) {
+          showAlert("registerAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        token = null;
+        document.getElementById("authContainer").style.display = "block";
+        document.getElementById("dashboard").classList.remove("active");
+        document.getElementById("loginForm").style.display = "block";
+        document.getElementById("registerForm").style.display = "none";
+      }
+
+      function showDashboard() {
+        document.getElementById("authContainer").style.display = "none";
+        document.getElementById("dashboard").classList.add("active");
+      }
+
+      async function loadData() {
+        await loadProfile();
+        await loadStatistics();
+        await loadCategories();
+        await loadTransactions();
+      }
+
+      async function loadProfile() {
+        try {
+          const response = await fetch(`${API_URL}/user/profile`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            document.getElementById("profileName").value = data.ho_ten;
+            document.getElementById("profileEmail").value = data.email;
+          }
+        } catch (error) {
+          console.error("Lỗi tải hồ sơ:", error);
+        }
+      }
+
+      async function loadStatistics() {
+        try {
+          const response = await fetch(`${API_URL}/thong-ke`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            document.getElementById("monthlyIncome").textContent =
+              formatCurrency(data.thu_nhap_thang_nay);
+            document.getElementById("monthlyExpense").textContent =
+              formatCurrency(data.chi_tieu_thang_nay);
+            document.getElementById("currentBalance").textContent =
+              formatCurrency(data.so_du);
+          }
+        } catch (error) {
+          console.error("Lỗi tải thống kê:", error);
+        }
+      }
+
+      async function loadCategories() {
+        try {
+          const response = await fetch(`${API_URL}/danh-muc`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const categories = await response.json();
+            const select = document.getElementById("transactionCategory");
+            const tbody = document.getElementById("categoryList");
+
+            select.innerHTML = '<option value="">Chọn danh mục</option>';
+
+            if (categories.length === 0) {
+              select.innerHTML +=
+                '<option value="" disabled>⚠️ Chưa có danh mục - Vào tab "Danh Mục" để tạo</option>';
+              tbody.innerHTML =
+                '<tr><td colspan="3" style="text-align: center; color: #999;">⚠️ Chưa có danh mục. Hãy tạo danh mục mới!</td></tr>';
+              return;
+            }
+
+            // Nhóm theo loại
+            const chiTieu = categories.filter(
+              (c) => c.loai_danh_muc === "Chi tiêu"
+            );
+            const thuNhap = categories.filter(
+              (c) => c.loai_danh_muc === "Thu nhập"
+            );
+
+            if (chiTieu.length > 0) {
+              select.innerHTML += '<optgroup label="💸 Chi Tiêu">';
+              chiTieu.forEach((cat) => {
+                select.innerHTML += `<option value="${cat.id}">${
+                  cat.icon || "📌"
+                } ${cat.ten_danh_muc}</option>`;
+              });
+              select.innerHTML += "</optgroup>";
+            }
+
+            if (thuNhap.length > 0) {
+              select.innerHTML += '<optgroup label="💰 Thu Nhập">';
+              thuNhap.forEach((cat) => {
+                select.innerHTML += `<option value="${cat.id}">${
+                  cat.icon || "💵"
+                } ${cat.ten_danh_muc}</option>`;
+              });
+              select.innerHTML += "</optgroup>";
+            }
+
+            tbody.innerHTML = "";
+            categories.forEach((cat) => {
+              tbody.innerHTML += `<tr>
+                            <td>${cat.ten_danh_muc}</td>
+                            <td>${cat.loai_danh_muc}</td>
+                            <td>-</td>
+                        </tr>`;
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi tải danh mục:", error);
+        }
+      }
+
+      function showCategorySuggestions() {
+        const suggestions = {
+          "Chi tiêu": [
+            { name: "Ăn uống", icon: "🍔" },
+            { name: "Giải trí", icon: "🎮" },
+            { name: "Mua sắm", icon: "🛒" },
+            { name: "Di chuyển", icon: "🚗" },
+            { name: "Học phí", icon: "📚" },
+            { name: "Y tế", icon: "💊" },
+            { name: "Nhà cửa", icon: "🏠" },
+            { name: "Điện nước", icon: "💡" },
+          ],
+          "Thu nhập": [
+            { name: "Lương", icon: "💰" },
+            { name: "Thưởng", icon: "🎁" },
+            { name: "Đầu tư", icon: "📈" },
+            { name: "Kinh doanh", icon: "💼" },
+          ],
+        };
+
+        let message = "📋 DANH MỤC PHỔ BIẾN:\n\n";
+        message += "💸 CHI TIÊU:\n";
+        suggestions["Chi tiêu"].forEach(
+          (s) => (message += `  ${s.icon} ${s.name}\n`)
+        );
+        message += "\n💰 THU NHẬP:\n";
+        suggestions["Thu nhập"].forEach(
+          (s) => (message += `  ${s.icon} ${s.name}\n`)
+        );
+        message += '\n💡 Vào tab "Danh Mục" để tạo danh mục mới!';
+
+        alert(message);
+      }
+
+      async function loadTransactions() {
+        try {
+          const response = await fetch(`${API_URL}/giao-dich`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const transactions = await response.json();
+            const tbody = document.getElementById("transactionList");
+            tbody.innerHTML = "";
+
+            transactions.forEach((trans) => {
+              tbody.innerHTML += `<tr>
+                            <td>-</td>
+                            <td>${formatCurrency(trans.so_tien)}</td>
+                            <td>${trans.mo_ta}</td>
+                            <td>${new Date(trans.ngay).toLocaleDateString(
+                              "vi-VN"
+                            )}</td>
+                        </tr>`;
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi tải giao dịch:", error);
+        }
+      }
+
+      async function addTransaction() {
+        const categoryId = document.getElementById("transactionCategory").value;
+        const amount = parseFloat(
+          document.getElementById("transactionAmount").value
+        );
+        const description = document.getElementById(
+          "transactionDescription"
+        ).value;
+
+        if (!categoryId || !amount) {
+          showAlert(
+            "dashboardAlert",
+            "Vui lòng điền đầy đủ thông tin",
+            "error"
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/giao-dich`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              danh_muc_id: parseInt(categoryId),
+              so_tien: amount,
+              mo_ta: description,
+            }),
+          });
+
+          if (response.ok) {
+            showAlert("dashboardAlert", "Thêm giao dịch thành công", "success");
+            document.getElementById("transactionAmount").value = "";
+            document.getElementById("transactionDescription").value = "";
+            loadData();
+          } else {
+            const data = await response.json();
+            showAlert("dashboardAlert", data.message, "error");
+          }
+        } catch (error) {
+          showAlert("dashboardAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function addCategory() {
+        const type = document.getElementById("categoryType").value;
+        const name = document.getElementById("categoryName").value;
+        const description = document.getElementById(
+          "categoryDescription"
+        ).value;
+
+        if (!name) {
+          showAlert("dashboardAlert", "Vui lòng nhập tên danh mục", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/danh-muc`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              loai_danh_muc: type,
+              ten_danh_muc: name,
+              mo_ta: description,
+            }),
+          });
+
+          if (response.ok) {
+            showAlert("dashboardAlert", "Thêm danh mục thành công", "success");
+            document.getElementById("categoryName").value = "";
+            document.getElementById("categoryDescription").value = "";
+            loadCategories();
+          } else {
+            const data = await response.json();
+            showAlert("dashboardAlert", data.message, "error");
+          }
+        } catch (error) {
+          showAlert("dashboardAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function updateProfile() {
+        const name = document.getElementById("profileName").value;
+        const password = document.getElementById("profilePassword").value;
+
+        if (!name) {
+          showAlert("dashboardAlert", "Vui lòng nhập họ tên", "error");
+          return;
+        }
+
+        try {
+          const body = { ho_ten: name };
+          if (password) body.mat_khau = password;
+
+          const response = await fetch(`${API_URL}/user/profile`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          });
+
+          if (response.ok) {
+            showAlert("dashboardAlert", "Cập nhật hồ sơ thành công", "success");
+            document.getElementById("profilePassword").value = "";
+          } else {
+            const data = await response.json();
+            showAlert("dashboardAlert", data.message, "error");
+          }
+        } catch (error) {
+          showAlert("dashboardAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function loadDetailedStats() {
+        const month =
+          document.getElementById("statMonth").value ||
+          new Date().getMonth() + 1;
+        const year =
+          document.getElementById("statYear").value || new Date().getFullYear();
+
+        try {
+          const response = await fetch(
+            `${API_URL}/thong-ke-chi-tiet?thang=${month}&nam=${year}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          if (response.ok) {
+            const stats = await response.json();
+            const tbody = document.getElementById("statsList");
+            tbody.innerHTML = "";
+
+            stats.forEach((stat) => {
+              tbody.innerHTML += `<tr>
+                            <td>${stat.ten_danh_muc}</td>
+                            <td>${stat.loai}</td>
+                            <td>${formatCurrency(stat.tong)}</td>
+                        </tr>`;
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi tải thống kê:", error);
+        }
+      }
+
+      async function addDebt() {
+        const name = document.getElementById("debtName").value;
+        const type = document.getElementById("debtType").value;
+        const amount = parseFloat(document.getElementById("debtAmount").value);
+        const rate = parseFloat(document.getElementById("debtRate").value) || 0;
+        const due = document.getElementById("debtDue").value;
+
+        if (!name || !amount || !due) {
+          showAlert(
+            "dashboardAlert",
+            "Vui lòng điền đầy đủ thông tin",
+            "error"
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/vay-no`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              ho_ten_vay_no: name,
+              loai: type,
+              so_tien: amount,
+              lai_suat: rate,
+              han_tra: due,
+            }),
+          });
+
+          if (response.ok) {
+            showAlert("dashboardAlert", "Thêm thành công", "success");
+            document.getElementById("debtName").value = "";
+            document.getElementById("debtAmount").value = "";
+            document.getElementById("debtRate").value = "0";
+            document.getElementById("debtDue").value = "";
+            loadDebts();
+          }
+        } catch (error) {
+          showAlert("dashboardAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function loadDebts() {
+        try {
+          const response = await fetch(`${API_URL}/vay-no`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const debts = await response.json();
+            const tbody = document.getElementById("debtList");
+            tbody.innerHTML = "";
+
+            debts.forEach((debt) => {
+              tbody.innerHTML += `<tr>
+                            <td>${debt.ho_ten_vay_no}</td>
+                            <td>${debt.loai}</td>
+                            <td>${formatCurrency(debt.so_tien)}</td>
+                            <td>${debt.trang_thai}</td>
+                            <td>${new Date(debt.han_tra).toLocaleDateString(
+                              "vi-VN"
+                            )}</td>
+                        </tr>`;
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi tải vay nợ:", error);
+        }
+      }
+
+      async function addSaving() {
+        const name = document.getElementById("savingName").value;
+        const target = parseFloat(
+          document.getElementById("savingTarget").value
+        );
+        const end = document.getElementById("savingEnd").value;
+
+        if (!name || !target || !end) {
+          showAlert(
+            "dashboardAlert",
+            "Vui lòng điền đầy đủ thông tin",
+            "error"
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/tich-luy`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              ten_tich_luy: name,
+              so_tien_muc_tieu: target,
+              ngay_ket_thuc: end,
+            }),
+          });
+
+          if (response.ok) {
+            showAlert("dashboardAlert", "Tạo mục tiêu thành công", "success");
+            document.getElementById("savingName").value = "";
+            document.getElementById("savingTarget").value = "";
+            document.getElementById("savingEnd").value = "";
+            loadSavings();
+          }
+        } catch (error) {
+          showAlert("dashboardAlert", "Lỗi kết nối", "error");
+        }
+      }
+
+      async function loadSavings() {
+        try {
+          const response = await fetch(`${API_URL}/tich-luy`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const savings = await response.json();
+            const tbody = document.getElementById("savingsList");
+            tbody.innerHTML = "";
+
+            savings.forEach((saving) => {
+              tbody.innerHTML += `<tr>
+                            <td>${saving.ten_tich_luy}</td>
+                            <td>${formatCurrency(saving.so_tien_muc_tieu)}</td>
+                            <td>${saving.trang_thai}</td>
+                            <td>${
+                              saving.ngay_ket_thuc
+                                ? new Date(
+                                    saving.ngay_ket_thuc
+                                  ).toLocaleDateString("vi-VN")
+                                : "-"
+                            }</td>
+                        </tr>`;
+            });
+          }
+        } catch (error) {
+          console.error("Lỗi tải tiết kiệm:", error);
+        }
+      }
+
+      function switchTab(tab) {
+        document
+          .querySelectorAll(".section")
+          .forEach((el) => (el.style.display = "none"));
+        document
+          .querySelectorAll(".nav-tabs button")
+          .forEach((el) => el.classList.remove("active"));
+
+        const tabs = {
+          transactions: "transactionsTab",
+          categories: "categoriesTab",
+          statistics: "statisticsTab",
+          debt: "debtTab",
+          savings: "savingsTab",
+          profile: "profileTab",
+        };
+
+        if (tabs[tab]) {
+          document.getElementById(tabs[tab]).style.display = "block";
+          if (tab === "statistics") loadDetailedStats();
+          if (tab === "debt") loadDebts();
+          if (tab === "savings") loadSavings();
+        }
+
+        event.target.classList.add("active");
+      }
+
+      function showAlert(elementId, message, type) {
+        const alert = document.getElementById(elementId);
+        alert.textContent = message;
+        alert.className = `alert ${type}`;
+        setTimeout(() => {
+          alert.className = "alert";
+        }, 3000);
+      }
+
+      function formatCurrency(value) {
+        return new Intl.NumberFormat("vi-VN", {
+          style: "currency",
+          currency: "VND",
+        }).format(value);
+      }
+    </script>
+  </body>
+</html>

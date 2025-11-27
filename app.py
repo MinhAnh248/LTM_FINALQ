@@ -9,9 +9,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///expense.db')
+# Database configuration for production
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///expense.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 
@@ -83,48 +88,53 @@ class VayNo(db.Model):
 # Auth Routes
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    
-    if not data or not data.get('email') or not data.get('mat_khau') or not data.get('ho_ten'):
-        return jsonify({'message': 'Thiếu thông tin'}), 400
-    
-    if NguoiDung.query.filter_by(email=data['email']).first():
-        return jsonify({'message': 'Email đã tồn tại'}), 400
-    
-    hashed_password = bcrypt.hashpw(data['mat_khau'].encode('utf-8'), bcrypt.gensalt())
-    
-    user = NguoiDung(
-        ho_ten=data['ho_ten'],
-        email=data['email'],
-        mat_khau=hashed_password.decode('utf-8'),
-        so_du=data.get('so_du', 0)
-    )
-    
-    db.session.add(user)
-    db.session.flush()
-    
-    # Tạo danh mục mặc định
-    default_categories = [
-        {'loai': 'Chi tiêu', 'ten': 'Ăn uống', 'icon': '🍔'},
-        {'loai': 'Chi tiêu', 'ten': 'Giải trí', 'icon': '🎮'},
-        {'loai': 'Chi tiêu', 'ten': 'Mua sắm', 'icon': '🛒'},
-        {'loai': 'Chi tiêu', 'ten': 'Di chuyển', 'icon': '🚗'},
-        {'loai': 'Thu nhập', 'ten': 'Lương', 'icon': '💰'},
-        {'loai': 'Thu nhập', 'ten': 'Thưởng', 'icon': '🎁'},
-    ]
-    
-    for cat in default_categories:
-        danh_muc = DanhMuc(
-            nguoi_dung_id=user.id,
-            loai_danh_muc=cat['loai'],
-            ten_danh_muc=cat['ten'],
-            icon=cat['icon']
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('email') or not data.get('mat_khau') or not data.get('ho_ten'):
+            return jsonify({'message': 'Thiếu thông tin'}), 400
+        
+        if NguoiDung.query.filter_by(email=data['email']).first():
+            return jsonify({'message': 'Email đã tồn tại'}), 400
+        
+        hashed_password = bcrypt.hashpw(data['mat_khau'].encode('utf-8'), bcrypt.gensalt())
+        
+        user = NguoiDung(
+            ho_ten=data['ho_ten'],
+            email=data['email'],
+            mat_khau=hashed_password.decode('utf-8'),
+            so_du=data.get('so_du', 0)
         )
-        db.session.add(danh_muc)
+        
+        db.session.add(user)
+        db.session.flush()
+        
+        # Tạo danh mục mặc định
+        default_categories = [
+            {'loai': 'Chi tiêu', 'ten': 'Ăn uống', 'icon': '🍔'},
+            {'loai': 'Chi tiêu', 'ten': 'Giải trí', 'icon': '🎮'},
+            {'loai': 'Chi tiêu', 'ten': 'Mua sắm', 'icon': '🛒'},
+            {'loai': 'Chi tiêu', 'ten': 'Di chuyển', 'icon': '🚗'},
+            {'loai': 'Thu nhập', 'ten': 'Lương', 'icon': '💰'},
+            {'loai': 'Thu nhập', 'ten': 'Thưởng', 'icon': '🎁'},
+        ]
+        
+        for cat in default_categories:
+            danh_muc = DanhMuc(
+                nguoi_dung_id=user.id,
+                loai_danh_muc=cat['loai'],
+                ten_danh_muc=cat['ten'],
+                icon=cat['icon']
+            )
+            db.session.add(danh_muc)
+        
+        db.session.commit()
+        
+        return jsonify({'message': 'Đăng ký thành công', 'user_id': user.id}), 201
     
-    db.session.commit()
-    
-    return jsonify({'message': 'Đăng ký thành công', 'user_id': user.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Lỗi server: {str(e)}'}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -261,6 +271,25 @@ def update_profile():
     
     db.session.commit()
     return jsonify({'message': 'Cập nhật thành công'}), 200
+
+# Root route - serve index.html
+@app.route('/')
+def home():
+    return app.send_static_file('index.html')
+
+@app.route('/api')
+def api_info():
+    return jsonify({
+        'message': 'Expense Tracker API',
+        'status': 'running',
+        'endpoints': [
+            '/api/auth/login',
+            '/api/auth/register',
+            '/api/giao-dich',
+            '/api/danh-muc',
+            '/api/thong-ke'
+        ]
+    })
 
 # Statistics Routes
 @app.route('/api/thong-ke', methods=['GET'])
