@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
@@ -10,7 +10,7 @@ from ai_module import full_financial_analysis
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.')
 CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///expense.db')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
@@ -80,6 +80,29 @@ class VayNo(db.Model):
     mo_ta = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+@app.route('/')
+def index():
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            return f.read()
+    except:
+        return 'index.html not found', 500
+
+@app.route('/admin')
+def admin():
+    try:
+        with open('admin.html', 'r', encoding='utf-8') as f:
+            return f.read()
+    except:
+        return 'admin.html not found', 500
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    try:
+        return send_file(filename)
+    except:
+        return '', 404
 
 # Auth Routes
 @app.route('/api/auth/register', methods=['POST'])
