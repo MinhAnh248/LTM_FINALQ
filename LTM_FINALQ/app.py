@@ -83,16 +83,20 @@ class VayNo(db.Model):
 
 @app.route('/')
 def index():
+    import os
+    path = os.path.join(os.path.dirname(__file__), 'index.html')
     try:
-        with open('index.html', 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             return f.read()
     except:
         return 'index.html not found', 500
 
 @app.route('/admin')
 def admin():
+    import os
+    path = os.path.join(os.path.dirname(__file__), 'admin.html')
     try:
-        with open('admin.html', 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             return f.read()
     except:
         return 'admin.html not found', 500
