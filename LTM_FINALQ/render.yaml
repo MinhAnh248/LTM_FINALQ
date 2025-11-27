@@ -2,6 +2,7 @@ services:
   - type: web
     name: expense-tracker-backend
     env: python
+    rootDir: LTM_FINALQ
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
