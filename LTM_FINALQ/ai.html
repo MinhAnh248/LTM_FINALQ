@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự đoán Chi Tiêu AI</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f4c3 0%, #dcedc8 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #33691e;
+        }
+
+        .prediction {
+            margin-bottom: 20px;
+        }
+
+        .prediction h3 {
+            margin-bottom: 10px;
+            color: #558b2f;
+        }
+
+        .prediction p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: #558b2f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #33691e;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Dự đoán Chi Tiêu AI</h1>
+
+        <div class="prediction">
+            <h3>Dự đoán chi tiêu tháng tới:</h3>
+            <p id="predictedExpense">Đang tải...</p>
+        </div>
+
+        <div class="prediction">
+            <h3>Gợi ý chi tiêu hợp lý:</h3>
+            <p id="expenseSuggestions">Đang tải...</p>
+        </div>
+
+        <div style="text-align:center;">
+            <button onclick="window.location.href='index.html'">Quay lại Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:5000/api"; // dùng 127.0.0.1 tránh lỗi localhost
+        const token = localStorage.getItem("token");
+
+        async function loadAIPrediction() {
+            try {
+                const response = await fetch(`${API_URL}/ai/prediction`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Lấy giá trị dự đoán
+                    const predictedAmount = data.monthly_prediction?.predicted_amount ?? "Chưa có dữ liệu";
+                    document.getElementById("predictedExpense").textContent = predictedAmount.toLocaleString('vi-VN') + " VND";
+
+                    // Lấy gợi ý chi tiêu
+                    const suggestions = data.advice ?? [];
+                    document.getElementById("expenseSuggestions").textContent = suggestions.join(' | ');
+
+                } else {
+                    document.getElementById("predictedExpense").textContent = "Không thể tải dữ liệu.";
+                    document.getElementById("expenseSuggestions").textContent = "Không thể tải dữ liệu.";
+                }
+            } catch (error) {
+                console.error("Lỗi fetch API:", error);
+                document.getElementById("predictedExpense").textContent = "Lỗi kết nối API.";
+                document.getElementById("expenseSuggestions").textContent = "Lỗi kết nối API.";
+            }
+        }
+
+        if (token) {
+            loadAIPrediction();
+        } else {
+            document.getElementById("predictedExpense").textContent = "Vui lòng đăng nhập để xem dự đoán.";
+            document.getElementById("expenseSuggestions").textContent = "Vui lòng đăng nhập để xem gợi ý.";
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quét Hóa Đơn - Đã Sửa Lỗi</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading { border: 4px solid #f3f3f3; border-top: 4px solid #4caf50; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8">🧾 Quét Hóa Đơn</h1>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Upload Section -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Tải lên hình ảnh</h2>
+                
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500" 
+                     onclick="document.getElementById('fileInput').click()">
+                    <div class="text-4xl mb-4">📷</div>
+                    <p class="text-gray-600">Nhấn để chọn hình ảnh hóa đơn</p>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                </div>
+                
+                <div id="preview" class="mt-4 hidden">
+                    <img id="previewImg" class="w-full max-h-64 object-contain rounded mb-4">
+                    <button id="processBtn" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        Phân tích hóa đơn
+                    </button>
+                </div>
+                
+                <div id="loading" class="text-center py-8 hidden">
+                    <div class="loading mx-auto"></div>
+                    <p class="mt-4 text-gray-600">Đang xử lý...</p>
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Kết quả</h2>
+                <div id="results" class="text-gray-500">
+                    Chưa có dữ liệu
+                </div>
+                
+                <div id="actions" class="mt-4 space-x-2 hidden">
+                    <button id="saveBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        💰 Lưu chi tiêu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        document.getElementById('processBtn').addEventListener('click', processImage);
+        document.getElementById('saveBtn').addEventListener('click', saveExpense);
+        
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('preview').classList.remove('hidden');
+                document.getElementById('results').innerHTML = 'Chưa có dữ liệu';
+                document.getElementById('actions').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function processImage() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+            
+            showLoading(true);
+            
+            try {
+                // OCR với Tesseract
+                const { data: { text } } = await Tesseract.recognize(file, 'vie+eng', {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            document.querySelector('#loading p').textContent = `Đang nhận diện... ${progress}%`;
+                        }
+                    }
+                });
+                
+                console.log('OCR Text:', text);
+                
+                // Phân tích đơn giản
+                const result = parseReceipt(text);
+                displayResults(result, text);
+                
+            } catch (error) {
+                console.error('Lỗi OCR:', error);
+                document.getElementById('results').innerHTML = 
+                    '<div class="text-red-500">❌ Lỗi: Không thể đọc hóa đơn. Vui lòng thử lại với hình ảnh rõ nét hơn.</div>';
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function parseReceipt(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            // Tìm tổng tiền (các pattern phổ biến)
+            let total = 0;
+            const totalPatterns = [
+                /tổng.*?(\d{1,3}(?:[,.]?\d{3})*)/i,
+                /total.*?(\d{1,3}(?:[,.]?\d{3})*)/i,
+                /thành tiền.*?(\d{1,3}(?:[,.]?\d{3})*)/i
+            ];
+            
+            for (const line of lines) {
+                for (const pattern of totalPatterns) {
+                    const match = line.match(pattern);
+                    if (match) {
+                        total = parseInt(match[1].replace(/[,.]/, ''));
+                        break;
+                    }
+                }
+                if (total > 0) break;
+            }
+            
+            // Tìm tên cửa hàng (thường ở đầu)
+            let storeName = '';
+            for (let i = 0; i < Math.min(5, lines.length); i++) {
+                const line = lines[i].trim();
+                if (line.length > 3 && !line.match(/^\d/) && !line.includes('hóa đơn')) {
+                    storeName = line;
+                    break;
+                }
+            }
+            
+            // Tìm ngày
+            let date = '';
+            const datePattern = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
+            for (const line of lines) {
+                const match = line.match(datePattern);
+                if (match) {
+                    date = match[1];
+                    break;
+                }
+            }
+            
+            return { storeName, date, total };
+        }
+        
+        function displayResults(data, rawText) {
+            currentData = data;
+            
+            const html = `
+                <div class="space-y-3">
+                    <div><strong>Cửa hàng:</strong> ${data.storeName || 'Không xác định'}</div>
+                    <div><strong>Ngày:</strong> ${data.date || 'Không xác định'}</div>
+                    <div><strong>Tổng tiền:</strong> ${data.total ? data.total.toLocaleString() + ' VNĐ' : 'Không xác định'}</div>
+                </div>
+                <details class="mt-4">
+                    <summary class="cursor-pointer text-blue-500">Xem văn bản gốc</summary>
+                    <pre class="mt-2 text-xs bg-gray-100 p-2 rounded">${rawText}</pre>
+                </details>
+            `;
+            
+            document.getElementById('results').innerHTML = html;
+            
+            if (data.total > 0) {
+                document.getElementById('actions').classList.remove('hidden');
+            }
+        }
+        
+        async function saveExpense() {
+            if (!currentData || !currentData.total) {
+                alert('Không có thông tin số tiền để lưu!');
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Vui lòng đăng nhập trước!');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/giao-dich', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        loai: 'chi',
+                        so_tien: currentData.total,
+                        mo_ta: `Hóa đơn từ ${currentData.storeName || 'Cửa hàng'} - ${currentData.date || ''}`,
+                        ngay: currentData.date || new Date().toISOString().split('T')[0]
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('✅ Đã lưu chi tiêu thành công!');
+                    document.getElementById('saveBtn').disabled = true;
+                    document.getElementById('saveBtn').textContent = '✅ Đã lưu';
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Lỗi: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Lỗi:', error);
+                alert('❌ Không thể kết nối server!');
+            }
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+            document.getElementById('preview').classList.toggle('hidden', show);
+        }
+    </script>
+</body>
+</html>
