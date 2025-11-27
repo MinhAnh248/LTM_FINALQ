@@ -84,22 +84,26 @@ class VayNo(db.Model):
 @app.route('/')
 def index():
     import os
-    path = os.path.join(os.path.dirname(__file__), 'index.html')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        return 'index.html not found', 500
+    for fname in ['index.html', './index.html']:
+        try:
+            if os.path.exists(fname):
+                with open(fname, 'r', encoding='utf-8') as f:
+                    return f.read()
+        except:
+            pass
+    return 'index.html not found', 500
 
 @app.route('/admin')
 def admin():
     import os
-    path = os.path.join(os.path.dirname(__file__), 'admin.html')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        return 'admin.html not found', 500
+    for fname in ['admin.html', './admin.html']:
+        try:
+            if os.path.exists(fname):
+                with open(fname, 'r', encoding='utf-8') as f:
+                    return f.read()
+        except:
+            pass
+    return 'admin.html not found', 500
 
 @app.route('/<path:filename>')
 def serve_static(filename):
