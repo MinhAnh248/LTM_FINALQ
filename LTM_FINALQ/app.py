@@ -88,26 +88,38 @@ def health():
 @app.route('/')
 def index():
     import os
-    for fname in ['index.html', './index.html']:
+    cwd = os.getcwd()
+    paths = [
+        os.path.join(cwd, 'index.html'),
+        'index.html',
+        './index.html'
+    ]
+    for fpath in paths:
         try:
-            if os.path.exists(fname):
-                with open(fname, 'r', encoding='utf-8') as f:
+            if os.path.exists(fpath):
+                with open(fpath, 'r', encoding='utf-8') as f:
                     return f.read()
         except:
             pass
-    return 'index.html not found', 500
+    return f'index.html not found. CWD: {cwd}', 500
 
 @app.route('/admin')
 def admin():
     import os
-    for fname in ['admin.html', './admin.html']:
+    cwd = os.getcwd()
+    paths = [
+        os.path.join(cwd, 'admin.html'),
+        'admin.html',
+        './admin.html'
+    ]
+    for fpath in paths:
         try:
-            if os.path.exists(fname):
-                with open(fname, 'r', encoding='utf-8') as f:
+            if os.path.exists(fpath):
+                with open(fpath, 'r', encoding='utf-8') as f:
                     return f.read()
         except:
             pass
-    return 'admin.html not found', 500
+    return f'admin.html not found. CWD: {cwd}', 500
 
 @app.route('/<path:filename>')
 def serve_static(filename):
