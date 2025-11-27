@@ -9,8 +9,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
+
+# Root route
+@app.route('/')
+def home():
+    try:
+        return app.send_static_file('index.html')
+    except:
+        return jsonify({'message': 'Expense Tracker API', 'status': 'running'})
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    try:
+        return app.send_static_file(filename)
+    except:
+        return jsonify({'error': 'File not found'}), 404
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///expense.db')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
